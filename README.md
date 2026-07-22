@@ -20,6 +20,7 @@ Open `http://localhost:3000`.
 pnpm build
 ```
 
-The project is ready for deployment on Vercel. The current version uses demo
-listings; live data sources and data storage on ALL-INKL will be added in the
-next phase.
+The project is ready for deployment on Vercel. It currently fetches live HOWOGE,
+degewo, and GESOBAU listings on the server and exposes normalized data at
+`/api/listings`. Additional housing providers and data storage on ALL-INKL will
+be added in later phases.
