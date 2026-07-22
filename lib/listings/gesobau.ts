@@ -1,7 +1,16 @@
 import type { Listing } from "./types";
 
 const GESOBAU_ORIGIN = "https://www.gesobau.de";
-const GESOBAU_ENDPOINT = `${GESOBAU_ORIGIN}/mieten/wohnungssuche/?resultsPerPage=10000&resultsPage=0&resultAsJSON=1&befilter%5B0%5D=nutzungsart_stringS%3AWOHNEN&befilter%5B1%5D=kanal_stringM%3A%28%22Service%22+OR+%22Senioren+Kachel%22+OR+%22Bestand%22+OR+%22Studierende%22+OR+%22Neubau+Kachel%22%29`;
+const GESOBAU_ENDPOINT = new URL("/mieten/wohnungssuche/", GESOBAU_ORIGIN);
+
+GESOBAU_ENDPOINT.searchParams.set("resultsPerPage", "10000");
+GESOBAU_ENDPOINT.searchParams.set("resultsPage", "0");
+GESOBAU_ENDPOINT.searchParams.set("resultAsJSON", "1");
+GESOBAU_ENDPOINT.searchParams.append("befilter[0]", "nutzungsart_stringS:WOHNEN");
+GESOBAU_ENDPOINT.searchParams.append(
+  "befilter[1]",
+  'kanal_stringM:("Service" OR "Senioren Kachel" OR "Bestand" OR "Studierende" OR "Neubau Kachel")',
+);
 
 type GesobauRaw = {
   uid?: unknown;
