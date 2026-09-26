@@ -10,6 +10,7 @@ const money = new Intl.NumberFormat("de-DE", {
 export default async function Home() {
   const { listings, sources, fetchedAt } = await getListings();
   const connectedSources = sources.filter((source) => source.status === "ok");
+  const failedSources = sources.filter((source) => source.status === "error");
 
   return (
     <main>
@@ -55,11 +56,24 @@ export default async function Home() {
             ))}
           </div>
         ) : (
-          <p className="notice">Die Angebote konnten gerade nicht geladen werden.</p>
+          <p className="notice">
+            {failedSources.length === 0
+              ? "Aktuell sind keine Wohnungsangebote verfügbar."
+              : connectedSources.length === 0
+                ? "Die Angebote konnten gerade nicht geladen werden."
+                : "In den erreichbaren Quellen sind aktuell keine Wohnungsangebote verfügbar."}
+          </p>
+        )}
+
+        {failedSources.length > 0 && (
+          <p className="notice" role="status">
+            Nicht erreichbar: {failedSources.map((source) => source.provider).join(", ")}.
+            {connectedSources.length > 0 && " Die Angebotsliste ist möglicherweise unvollständig."}
+          </p>
         )}
 
         <p className="notice">
-          Quellen: {connectedSources.map((source) => `${source.provider} (${source.count})`).join(", ") || "nicht erreichbar"} · Aktualisiert: {new Date(fetchedAt).toLocaleString("de-DE")}
+          Quellen: {connectedSources.map((source) => `${source.provider} (${source.count})`).join(", ") || "nicht erreichbar"} · Aktualisiert: {new Date(fetchedAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin" })} (Berliner Zeit)
         </p>
       </section>
     </main>

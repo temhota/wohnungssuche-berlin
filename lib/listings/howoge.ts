@@ -25,11 +25,14 @@ function text(value: unknown): string {
 }
 
 function number(value: unknown): number | null {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function normalize(item: HowogeListing): Listing | null {
+function normalize(value: unknown): Listing | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const item = value as HowogeListing;
   const uid = number(item.uid);
   const address = text(item.title);
   const rooms = number(item.rooms);
@@ -83,6 +86,6 @@ export async function fetchHowogeListings(): Promise<Listing[]> {
   }
 
   return payload.immoobjects
-    .map((item) => normalize(item as HowogeListing))
+    .map(normalize)
     .filter((item): item is Listing => item !== null);
 }

@@ -14,6 +14,15 @@ pnpm dev
 
 Open `http://localhost:3000`.
 
+## Verify changes
+
+```bash
+pnpm test
+pnpm lint
+```
+
+Tests use controlled provider responses and do not require network access.
+
 ## Verify the production build
 
 ```bash

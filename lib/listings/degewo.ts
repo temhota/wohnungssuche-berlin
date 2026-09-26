@@ -28,24 +28,8 @@ function germanNumber(value: string): number | null {
   return normalized && Number.isFinite(parsed) ? parsed : null;
 }
 
-export async function fetchDegewoListings(): Promise<Listing[]> {
-  const response = await fetch(DEGEWO_ENDPOINT, {
-    method: "POST",
-    headers: {
-      accept: "text/html",
-      "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-      "user-agent": "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
-    },
-    body: searchParams,
-    cache: "no-store",
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`degewo returned HTTP ${response.status}`);
-  }
-
-  const $ = load(await response.text());
+function parsePage(html: string) {
+  const $ = load(html);
   const listings: Listing[] = [];
 
   $(".c-teaser--apartment").each((_, element) => {
@@ -76,7 +60,9 @@ export async function fetchDegewoListings(): Promise<Listing[]> {
       return;
     }
 
-    const wbsText = `${title} ${card.text()}`.match(/WBS(?:\s+[\d/-]+)?/i)?.[0] ?? null;
+    const description = clean(`${title} ${card.text()}`);
+    const withoutWbs = /\b(?:ohne|kein(?:en)?)\s+WBS\b|\bWBS\s+(?:ist\s+)?nicht\s+(?:erforderlich|notwendig|nötig)\b/i.test(description);
+    const wbsText = withoutWbs ? null : description.match(/\bWBS(?:\s+[\d/-]+)?/i)?.[0] ?? null;
 
     listings.push({
       id: `degewo-${id}`,
@@ -97,5 +83,60 @@ export async function fetchDegewoListings(): Promise<Listing[]> {
     throw new Error("degewo returned an unexpected response");
   }
 
-  return listings;
+  const pages = new Map<number, string>();
+  $("a[href]").each((_, element) => {
+    try {
+      const url = new URL($(element).attr("href")!, DEGEWO_ORIGIN);
+      const page = Number(url.searchParams.get("tx_openimmo_immobilie[page]"));
+      if (url.origin === DEGEWO_ORIGIN && url.pathname === "/immosuche" && Number.isInteger(page) && page > 1) {
+        url.hash = "";
+        pages.set(page, url.toString());
+      }
+    } catch {
+      // Ignore malformed navigation links from the remote document.
+    }
+  });
+  return { listings, pages };
+}
+
+export async function fetchDegewoListings(): Promise<Listing[]> {
+  const signal = AbortSignal.timeout(20_000);
+  const headers = {
+    accept: "text/html",
+    "user-agent": "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
+  };
+  async function fetchPage(url: string, initial = false) {
+    const response = await fetch(url, {
+      method: initial ? "POST" : "GET",
+      headers: initial ? { ...headers, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" } : headers,
+      body: initial ? searchParams : undefined,
+      cache: "no-store",
+      signal,
+    });
+    if (!response.ok) throw new Error(`degewo returned HTTP ${response.status}`);
+    return parsePage(await response.text());
+  }
+
+  const listings = new Map<string, Listing>();
+  const visited = new Set([1]);
+  const pending = new Map<number, string>();
+  function collect(result: ReturnType<typeof parsePage>) {
+    for (const item of result.listings) listings.set(item.id, item);
+    for (const [page, url] of result.pages) {
+      if (!visited.has(page)) pending.set(page, url);
+    }
+  }
+
+  collect(await fetchPage(DEGEWO_ENDPOINT, true));
+  while (pending.size > 0) {
+    const batch = [...pending.entries()].slice(0, 3);
+    for (const [page] of batch) {
+      pending.delete(page);
+      visited.add(page);
+    }
+    if (visited.size > 100) throw new Error("degewo pagination exceeded the page limit");
+    const results = await Promise.all(batch.map(([, url]) => fetchPage(url)));
+    results.forEach(collect);
+  }
+  return [...listings.values()];
 }

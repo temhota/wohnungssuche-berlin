@@ -49,15 +49,18 @@ function text(value: unknown): string {
 }
 
 function number(value: unknown): number | null {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function firstText(value: unknown): string {
   return Array.isArray(value) ? text(value[0]) : text(value);
 }
 
-function normalize(item: GesobauItem): Listing | null {
+function normalize(value: unknown): Listing | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const item = value as GesobauItem;
   if (!item.raw || typeof item.raw !== "object") return null;
 
   const raw = item.raw as GesobauRaw;
@@ -124,6 +127,6 @@ export async function fetchGesobauListings(): Promise<Listing[]> {
   }
 
   return payload
-    .map((item) => normalize(item as GesobauItem))
+    .map(normalize)
     .filter((item): item is Listing => item !== null);
 }
