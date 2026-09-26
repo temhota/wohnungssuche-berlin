@@ -1,0 +1,16 @@
+# Dependencies and generated output
+node_modules/
+.pnpm-store/
+.next/
+.vinext/
+.wrangler/
+.vercel/
+out/
+dist/
+build/
+coverage/
+next-env.d.ts
+
+# Managed by package managers
+pnpm-lock.yaml
+package-lock.json

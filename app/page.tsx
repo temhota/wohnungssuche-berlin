@@ -30,7 +30,8 @@ export default async function Home() {
                 <div className="cardBody">
                   <div className="description">
                     <span className="published">
-                      {item.provider}{item.district ? ` · ${item.district}` : ""}
+                      {item.provider}
+                      {item.district ? ` · ${item.district}` : ""}
                     </span>
                     <h2>{item.title}</h2>
                     <p className="address">{item.address}</p>
@@ -43,14 +44,25 @@ export default async function Home() {
                   </div>
 
                   <dl className="facts">
-                    <div><dt>Zimmer</dt><dd>{item.rooms}</dd></div>
-                    <div><dt>Wohnfläche</dt><dd>{item.area.toLocaleString("de-DE")} m²</dd></div>
-                    <div><dt>Warmmiete</dt><dd>{money.format(item.warmRent)}</dd></div>
+                    <div>
+                      <dt>Zimmer</dt>
+                      <dd>{item.rooms}</dd>
+                    </div>
+                    <div>
+                      <dt>Wohnfläche</dt>
+                      <dd>{item.area.toLocaleString("de-DE")} m²</dd>
+                    </div>
+                    <div>
+                      <dt>Warmmiete</dt>
+                      <dd>{money.format(item.warmRent)}</dd>
+                    </div>
                   </dl>
                 </div>
 
                 <div className="cardFooter">
-                  <a href={item.href} target="_blank" rel="noreferrer">Zum Angebot ↗</a>
+                  <a href={item.href} target="_blank" rel="noreferrer">
+                    Zum Angebot ↗
+                  </a>
                 </div>
               </article>
             ))}
@@ -67,13 +79,23 @@ export default async function Home() {
 
         {failedSources.length > 0 && (
           <p className="notice" role="status">
-            Nicht erreichbar: {failedSources.map((source) => source.provider).join(", ")}.
-            {connectedSources.length > 0 && " Die Angebotsliste ist möglicherweise unvollständig."}
+            Nicht erreichbar:{" "}
+            {failedSources.map((source) => source.provider).join(", ")}.
+            {connectedSources.length > 0 &&
+              " Die Angebotsliste ist möglicherweise unvollständig."}
           </p>
         )}
 
         <p className="notice">
-          Quellen: {connectedSources.map((source) => `${source.provider} (${source.count})`).join(", ") || "nicht erreichbar"} · Aktualisiert: {new Date(fetchedAt).toLocaleString("de-DE", { timeZone: "Europe/Berlin" })} (Berliner Zeit)
+          Quellen:{" "}
+          {connectedSources
+            .map((source) => `${source.provider} (${source.count})`)
+            .join(", ") || "nicht erreichbar"}{" "}
+          · Aktualisiert:{" "}
+          {new Date(fetchedAt).toLocaleString("de-DE", {
+            timeZone: "Europe/Berlin",
+          })}{" "}
+          (Berliner Zeit)
         </p>
       </section>
     </main>

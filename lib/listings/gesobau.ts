@@ -6,7 +6,10 @@ const GESOBAU_ENDPOINT = new URL("/mieten/wohnungssuche/", GESOBAU_ORIGIN);
 GESOBAU_ENDPOINT.searchParams.set("resultsPerPage", "10000");
 GESOBAU_ENDPOINT.searchParams.set("resultsPage", "0");
 GESOBAU_ENDPOINT.searchParams.set("resultAsJSON", "1");
-GESOBAU_ENDPOINT.searchParams.append("befilter[0]", "nutzungsart_stringS:WOHNEN");
+GESOBAU_ENDPOINT.searchParams.append(
+  "befilter[0]",
+  "nutzungsart_stringS:WOHNEN",
+);
 GESOBAU_ENDPOINT.searchParams.append(
   "befilter[1]",
   'kanal_stringM:("Service" OR "Senioren Kachel" OR "Bestand" OR "Studierende" OR "Neubau Kachel")',
@@ -49,7 +52,8 @@ function text(value: unknown): string {
 }
 
 function number(value: unknown): number | null {
-  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim()))
+    return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
@@ -74,7 +78,15 @@ function normalize(value: unknown): Listing | null {
   const warmRent = number(raw.warmmiete_floatS);
   const href = text(raw.url) || text(item.detail);
 
-  if (uid === null || !title || !street || rooms === null || area === null || warmRent === null || !href) {
+  if (
+    uid === null ||
+    !title ||
+    !street ||
+    rooms === null ||
+    area === null ||
+    warmRent === null ||
+    !href
+  ) {
     return null;
   }
 
@@ -96,13 +108,18 @@ function normalize(value: unknown): Listing | null {
     id: `gesobau-${uid}`,
     provider: "GESOBAU",
     title,
-    address: [street, [postcode, city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
-    district: firstText(raw.region_stringM) || firstText(raw.location_stringM) || null,
+    address: [street, [postcode, city].filter(Boolean).join(" ")]
+      .filter(Boolean)
+      .join(", "),
+    district:
+      firstText(raw.region_stringM) || firstText(raw.location_stringM) || null,
     rooms,
     area,
     warmRent,
     wbs: raw.sozialwohnung_boolS === true ? "WBS erforderlich" : null,
-    features: featureFlags.filter(([enabled]) => enabled === true).map(([, label]) => label),
+    features: featureFlags
+      .filter(([enabled]) => enabled === true)
+      .map(([, label]) => label),
     href: new URL(href, GESOBAU_ORIGIN).toString(),
   };
 }
@@ -111,7 +128,8 @@ export async function fetchGesobauListings(): Promise<Listing[]> {
   const response = await fetch(GESOBAU_ENDPOINT, {
     headers: {
       accept: "application/json",
-      "user-agent": "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
+      "user-agent":
+        "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
     },
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),

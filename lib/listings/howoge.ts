@@ -25,7 +25,8 @@ function text(value: unknown): string {
 }
 
 function number(value: unknown): number | null {
-  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null;
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim()))
+    return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
@@ -39,7 +40,13 @@ function normalize(value: unknown): Listing | null {
   const area = number(item.area);
   const warmRent = number(item.rent);
 
-  if (uid === null || !address || rooms === null || area === null || warmRent === null) {
+  if (
+    uid === null ||
+    !address ||
+    rooms === null ||
+    area === null ||
+    warmRent === null
+  ) {
     return null;
   }
 
@@ -47,7 +54,9 @@ function normalize(value: unknown): Listing | null {
   const features = Array.isArray(item.features)
     ? item.features
         .map(text)
-        .filter((feature) => feature && feature.toLowerCase() !== "wbs erforderlich")
+        .filter(
+          (feature) => feature && feature.toLowerCase() !== "wbs erforderlich",
+        )
     : [];
 
   return {
@@ -70,7 +79,8 @@ export async function fetchHowogeListings(): Promise<Listing[]> {
     method: "POST",
     headers: {
       accept: "application/json",
-      "user-agent": "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
+      "user-agent":
+        "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
     },
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),

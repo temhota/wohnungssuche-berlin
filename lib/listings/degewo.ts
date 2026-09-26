@@ -37,7 +37,10 @@ function parsePage(html: string) {
     const link = card.find("h3 a").first();
     const title = clean(link.text());
     const href = link.attr("href") ?? "";
-    const id = card.find("[data-openimmo-bookmark-item-uid]").attr("data-openimmo-bookmark-item-uid") ?? href;
+    const id =
+      card
+        .find("[data-openimmo-bookmark-item-uid]")
+        .attr("data-openimmo-bookmark-item-uid") ?? href;
     const location = clean(card.find(".c-copy > p").first().text());
     const [address, district] = location.split("|").map(clean);
     const features = card
@@ -49,20 +52,36 @@ function parsePage(html: string) {
     const facts = new Map<string, string>();
     card.find(".c-definition-list__item").each((__, fact) => {
       const item = $(fact);
-      facts.set(clean(item.find("dd").text()).toLowerCase(), clean(item.find("dt").text()));
+      facts.set(
+        clean(item.find("dd").text()).toLowerCase(),
+        clean(item.find("dt").text()),
+      );
     });
 
     const warmRent = germanNumber(facts.get("warmmiete") ?? "");
     const rooms = germanNumber(facts.get("zimmer") ?? "");
     const area = germanNumber(facts.get("m²") ?? "");
 
-    if (!id || !title || !address || !href || warmRent === null || rooms === null || area === null) {
+    if (
+      !id ||
+      !title ||
+      !address ||
+      !href ||
+      warmRent === null ||
+      rooms === null ||
+      area === null
+    ) {
       return;
     }
 
     const description = clean(`${title} ${card.text()}`);
-    const withoutWbs = /\b(?:ohne|kein(?:en)?)\s+WBS\b|\bWBS\s+(?:ist\s+)?nicht\s+(?:erforderlich|notwendig|nötig)\b/i.test(description);
-    const wbsText = withoutWbs ? null : description.match(/\bWBS(?:\s+[\d/-]+)?/i)?.[0] ?? null;
+    const withoutWbs =
+      /\b(?:ohne|kein(?:en)?)\s+WBS\b|\bWBS\s+(?:ist\s+)?nicht\s+(?:erforderlich|notwendig|nötig)\b/i.test(
+        description,
+      );
+    const wbsText = withoutWbs
+      ? null
+      : (description.match(/\bWBS(?:\s+[\d/-]+)?/i)?.[0] ?? null);
 
     listings.push({
       id: `degewo-${id}`,
@@ -88,7 +107,12 @@ function parsePage(html: string) {
     try {
       const url = new URL($(element).attr("href")!, DEGEWO_ORIGIN);
       const page = Number(url.searchParams.get("tx_openimmo_immobilie[page]"));
-      if (url.origin === DEGEWO_ORIGIN && url.pathname === "/immosuche" && Number.isInteger(page) && page > 1) {
+      if (
+        url.origin === DEGEWO_ORIGIN &&
+        url.pathname === "/immosuche" &&
+        Number.isInteger(page) &&
+        page > 1
+      ) {
         url.hash = "";
         pages.set(page, url.toString());
       }
@@ -103,17 +127,24 @@ export async function fetchDegewoListings(): Promise<Listing[]> {
   const signal = AbortSignal.timeout(20_000);
   const headers = {
     accept: "text/html",
-    "user-agent": "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
+    "user-agent":
+      "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
   };
   async function fetchPage(url: string, initial = false) {
     const response = await fetch(url, {
       method: initial ? "POST" : "GET",
-      headers: initial ? { ...headers, "content-type": "application/x-www-form-urlencoded; charset=UTF-8" } : headers,
+      headers: initial
+        ? {
+            ...headers,
+            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+          }
+        : headers,
       body: initial ? searchParams : undefined,
       cache: "no-store",
       signal,
     });
-    if (!response.ok) throw new Error(`degewo returned HTTP ${response.status}`);
+    if (!response.ok)
+      throw new Error(`degewo returned HTTP ${response.status}`);
     return parsePage(await response.text());
   }
 
@@ -134,7 +165,8 @@ export async function fetchDegewoListings(): Promise<Listing[]> {
       pending.delete(page);
       visited.add(page);
     }
-    if (visited.size > 100) throw new Error("degewo pagination exceeded the page limit");
+    if (visited.size > 100)
+      throw new Error("degewo pagination exceeded the page limit");
     const results = await Promise.all(batch.map(([, url]) => fetchPage(url)));
     results.forEach(collect);
   }

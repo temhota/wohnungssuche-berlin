@@ -13,7 +13,9 @@ export async function getListings(): Promise<ListingResult> {
     { provider: "GESOBAU", fetch: fetchGesobauListings },
   ];
 
-  const results = await Promise.allSettled(providers.map((provider) => provider.fetch()));
+  const results = await Promise.allSettled(
+    providers.map((provider) => provider.fetch()),
+  );
 
   results.forEach((result, index) => {
     const provider = providers[index].provider;
@@ -25,7 +27,10 @@ export async function getListings(): Promise<ListingResult> {
         provider,
         status: "error",
         count: 0,
-        error: result.reason instanceof Error ? result.reason.message : "Unknown error",
+        error:
+          result.reason instanceof Error
+            ? result.reason.message
+            : "Unknown error",
       });
     }
   });

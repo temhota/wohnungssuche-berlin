@@ -19,9 +19,19 @@ Open `http://localhost:3000`.
 ```bash
 pnpm test
 pnpm lint
+pnpm format:check
 ```
 
 Tests use controlled provider responses and do not require network access.
+
+## Format code
+
+```bash
+pnpm format
+```
+
+Prettier uses the project configuration in `.prettierrc.json`. Generated output
+and package-manager lockfiles are excluded by `.prettierignore`.
 
 ## Verify the production build
 
