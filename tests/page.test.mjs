@@ -1,7 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
+import { createElement } from "react";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import Home from "../app/page.tsx";
+
+function renderToStaticMarkup(element) {
+  return renderMarkup(
+    createElement(AppRouterContext.Provider, { value: { push() {} } }, element),
+  );
+}
 
 test("page exposes unavailable providers while keeping successful listings", async (t) => {
   t.mock.method(globalThis, "fetch", async (url) =>

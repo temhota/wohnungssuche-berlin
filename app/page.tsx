@@ -1,6 +1,7 @@
 import { getListings } from "@/lib/listings";
 import { filterListings, pageHref, parseFilters } from "@/lib/listings/filters";
 import ListingFilters from "./filters";
+import ListingNavigation, { ListingLink } from "./listing-navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -45,121 +46,123 @@ export default async function Home({
   return (
     <main>
       <section className="content" id="top">
-        <div className="pageHeading">
-          <div>
-            <h1>Wohnungsangebote</h1>
-            <p>Aktuelle Angebote direkt von HOWOGE, degewo und GESOBAU</p>
+        <ListingNavigation>
+          <div className="pageHeading">
+            <div>
+              <h1>Wohnungsangebote</h1>
+              <p>Aktuelle Angebote direkt von HOWOGE, degewo und GESOBAU</p>
+            </div>
+            <span>{listings.length} Angebote</span>
           </div>
-          <span>{listings.length} Angebote</span>
-        </div>
 
-        <ListingFilters
-          key={JSON.stringify(filters)}
-          filters={filters}
-          districts={districts}
-        />
+          <ListingFilters
+            key={JSON.stringify(filters)}
+            filters={filters}
+            districts={districts}
+          />
 
-        {listings.length > 0 ? (
-          <div className="list">
-            {visibleListings.map((item) => (
-              <article className="card" key={item.id}>
-                <div className="cardBody">
-                  <div className="description">
-                    <span className="published">
-                      {item.provider}
-                      {item.district ? ` · ${item.district}` : ""}
-                    </span>
-                    <h2>{item.title}</h2>
-                    <p className="address">{item.address}</p>
-                    <div className="tags">
-                      {item.wbs && <span>{item.wbs}</span>}
-                      {item.features.map((feature) => (
-                        <span key={feature}>{feature}</span>
-                      ))}
+          {listings.length > 0 ? (
+            <div className="list">
+              {visibleListings.map((item) => (
+                <article className="card" key={item.id}>
+                  <div className="cardBody">
+                    <div className="description">
+                      <span className="published">
+                        {item.provider}
+                        {item.district ? ` · ${item.district}` : ""}
+                      </span>
+                      <h2>{item.title}</h2>
+                      <p className="address">{item.address}</p>
+                      <div className="tags">
+                        {item.wbs && <span>{item.wbs}</span>}
+                        {item.features.map((feature) => (
+                          <span key={feature}>{feature}</span>
+                        ))}
+                      </div>
                     </div>
+
+                    <dl className="facts">
+                      <div>
+                        <dt>Zimmer</dt>
+                        <dd>{item.rooms}</dd>
+                      </div>
+                      <div>
+                        <dt>Wohnfläche</dt>
+                        <dd>{item.area.toLocaleString("de-DE")} m²</dd>
+                      </div>
+                      <div>
+                        <dt>Warmmiete</dt>
+                        <dd>{money.format(item.warmRent)}</dd>
+                      </div>
+                    </dl>
                   </div>
 
-                  <dl className="facts">
-                    <div>
-                      <dt>Zimmer</dt>
-                      <dd>{item.rooms}</dd>
-                    </div>
-                    <div>
-                      <dt>Wohnfläche</dt>
-                      <dd>{item.area.toLocaleString("de-DE")} m²</dd>
-                    </div>
-                    <div>
-                      <dt>Warmmiete</dt>
-                      <dd>{money.format(item.warmRent)}</dd>
-                    </div>
-                  </dl>
-                </div>
+                  <div className="cardFooter">
+                    <a href={item.href} target="_blank" rel="noreferrer">
+                      Zum Angebot ↗
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="notice">
+              {filters.providers.length === 0
+                ? "Bitte wählen Sie mindestens eine Website."
+                : allListings.length > 0
+                  ? "Keine Angebote entsprechen Ihren Filtern."
+                  : failedSources.length === 0
+                    ? "Aktuell sind keine Wohnungsangebote verfügbar."
+                    : connectedSources.length === 0
+                      ? "Die Angebote konnten gerade nicht geladen werden."
+                      : "In den erreichbaren Quellen sind aktuell keine Wohnungsangebote verfügbar."}
+            </p>
+          )}
 
-                <div className="cardFooter">
-                  <a href={item.href} target="_blank" rel="noreferrer">
-                    Zum Angebot ↗
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
+          {totalPages > 1 && (
+            <nav className="pagination" aria-label="Seitennavigation">
+              {page > 1 ? (
+                <ListingLink href={pageHref(params, page - 1)} rel="prev">
+                  ← Zurück
+                </ListingLink>
+              ) : (
+                <span aria-disabled="true">← Zurück</span>
+              )}
+              <span aria-current="page">{`Seite ${page} von ${totalPages}`}</span>
+              {page < totalPages ? (
+                <ListingLink href={pageHref(params, page + 1)} rel="next">
+                  Weiter →
+                </ListingLink>
+              ) : (
+                <span aria-disabled="true">Weiter →</span>
+              )}
+            </nav>
+          )}
+
+          {failedSources.length > 0 && (
+            <p className="notice" role="status">
+              Nicht erreichbar:{" "}
+              {failedSources.map((source) => source.provider).join(", ")}.
+              {connectedSources.length > 0 &&
+                " Die Angebotsliste ist möglicherweise unvollständig."}
+            </p>
+          )}
+
           <p className="notice">
-            {filters.providers.length === 0
-              ? "Bitte wählen Sie mindestens eine Website."
-              : allListings.length > 0
-                ? "Keine Angebote entsprechen Ihren Filtern."
-                : failedSources.length === 0
-                  ? "Aktuell sind keine Wohnungsangebote verfügbar."
-                  : connectedSources.length === 0
-                    ? "Die Angebote konnten gerade nicht geladen werden."
-                    : "In den erreichbaren Quellen sind aktuell keine Wohnungsangebote verfügbar."}
+            Quellen:{" "}
+            {connectedSources
+              .map((source) => `${source.provider} (${source.count})`)
+              .join(", ") ||
+              (filters.providers.length === 0
+                ? "keine ausgewählt"
+                : "nicht erreichbar")}{" "}
+            · Aktualisiert:{" "}
+            {new Date(fetchedAt).toLocaleString("de-DE", {
+              timeZone: "Europe/Berlin",
+            })}{" "}
+            (Berliner Zeit)
           </p>
-        )}
-
-        {totalPages > 1 && (
-          <nav className="pagination" aria-label="Seitennavigation">
-            {page > 1 ? (
-              <a href={pageHref(params, page - 1)} rel="prev">
-                ← Zurück
-              </a>
-            ) : (
-              <span aria-disabled="true">← Zurück</span>
-            )}
-            <span aria-current="page">{`Seite ${page} von ${totalPages}`}</span>
-            {page < totalPages ? (
-              <a href={pageHref(params, page + 1)} rel="next">
-                Weiter →
-              </a>
-            ) : (
-              <span aria-disabled="true">Weiter →</span>
-            )}
-          </nav>
-        )}
-
-        {failedSources.length > 0 && (
-          <p className="notice" role="status">
-            Nicht erreichbar:{" "}
-            {failedSources.map((source) => source.provider).join(", ")}.
-            {connectedSources.length > 0 &&
-              " Die Angebotsliste ist möglicherweise unvollständig."}
-          </p>
-        )}
-
-        <p className="notice">
-          Quellen:{" "}
-          {connectedSources
-            .map((source) => `${source.provider} (${source.count})`)
-            .join(", ") ||
-            (filters.providers.length === 0
-              ? "keine ausgewählt"
-              : "nicht erreichbar")}{" "}
-          · Aktualisiert:{" "}
-          {new Date(fetchedAt).toLocaleString("de-DE", {
-            timeZone: "Europe/Berlin",
-          })}{" "}
-          (Berliner Zeit)
-        </p>
+        </ListingNavigation>
       </section>
     </main>
   );
