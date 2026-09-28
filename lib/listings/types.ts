@@ -17,6 +17,8 @@ export type ListingSource = {
   status: "ok" | "error";
   count: number;
   error?: string;
+  fetchedAt?: string;
+  stale?: boolean;
 };
 
 export type ListingResult = {

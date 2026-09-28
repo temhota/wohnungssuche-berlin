@@ -1,19 +1,11 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useTransition,
-  type ReactNode,
-} from "react";
-import { useRouter } from "next/navigation.js";
+import { createContext, useContext, type ReactNode } from "react";
 import { shouldNavigate } from "@/lib/navigation";
 
 const NavigationContext = createContext<{
-  pending: boolean;
   navigate: (href: string, scroll?: boolean) => void;
 }>({
-  pending: false,
   navigate: () => {},
 });
 
@@ -23,17 +15,15 @@ export function useListingNavigation() {
 
 export default function ListingNavigation({
   children,
+  pending,
+  navigate,
 }: {
   children: ReactNode;
+  pending: boolean;
+  navigate: (href: string, scroll?: boolean) => void;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  function navigate(href: string, scroll = false) {
-    if (pending) return;
-    startTransition(() => router.push(href, { scroll }));
-  }
   return (
-    <NavigationContext.Provider value={{ pending, navigate }}>
+    <NavigationContext.Provider value={{ navigate }}>
       <div className="loadingStatus" role="status" aria-live="polite">
         {pending && (
           <>
@@ -56,16 +46,15 @@ export function ListingLink({
   rel?: string;
   children: ReactNode;
 }) {
-  const { pending, navigate } = useListingNavigation();
+  const { navigate } = useListingNavigation();
   return (
     <a
       href={href}
       rel={rel}
-      aria-disabled={pending || undefined}
       onClick={(event) => {
         if (!shouldNavigate(event)) return;
         event.preventDefault();
-        if (!pending) navigate(href, true);
+        navigate(href, true);
       }}
     >
       {children}

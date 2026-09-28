@@ -2,13 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import { createElement } from "react";
-import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
-import Home from "../app/page.tsx";
+import ListingsView from "../app/listings-view.tsx";
+import { getListings } from "../lib/listings/index.ts";
+import { parseFilters } from "../lib/listings/filters.ts";
+
+async function Home({ searchParams } = {}) {
+  const params = (await searchParams) ?? {};
+  const result = await getListings(parseFilters(params).providers);
+  return createElement(ListingsView, { params, result });
+}
 
 function renderToStaticMarkup(element) {
-  return renderMarkup(
-    createElement(AppRouterContext.Provider, { value: { push() {} } }, element),
-  );
+  return renderMarkup(element);
 }
 
 test("page exposes unavailable providers while keeping successful listings", async (t) => {
@@ -238,4 +243,40 @@ test("unmatched filters show an empty search message", async (t) => {
   );
   assert.equal((html.match(/<article/g) || []).length, 0);
   assert.match(html, /Keine Angebote entsprechen Ihren Filtern/);
+});
+
+test("different filters and pages reuse a loaded snapshot without fetching", (t) => {
+  t.mock.method(globalThis, "fetch", () => {
+    throw new Error("Filtering must not fetch");
+  });
+  const result = {
+    listings: Array.from({ length: 101 }, (_, index) => ({
+      id: `howoge-${index}`,
+      provider: "HOWOGE",
+      title: `Saved ${index}`,
+      address: "Teststraße",
+      district: "Mitte",
+      warmRent: 800 + index,
+      rooms: 2,
+      area: 50,
+      wbs: null,
+      features: [],
+      href: "https://www.howoge.de/",
+    })),
+    sources: [{ provider: "HOWOGE", status: "ok", count: 101 }],
+    fetchedAt: "2026-09-28T10:00:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    createElement(ListingsView, {
+      result,
+      params: { minRent: "850", page: "2" },
+    }),
+  );
+  assert.equal((html.match(/<article/g) || []).length, 1);
+  assert.match(html, /<h2>Saved 100<\/h2>/);
+  const reset = renderToStaticMarkup(
+    createElement(ListingsView, { result, params: {} }),
+  );
+  assert.equal((reset.match(/<article/g) || []).length, 50);
+  assert.match(reset, /101 Angebote/);
 });

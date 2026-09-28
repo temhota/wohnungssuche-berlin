@@ -12,7 +12,7 @@ export default function ListingFilters({
   filters: Filters;
   districts: string[];
 }) {
-  const { pending, navigate } = useListingNavigation();
+  const { navigate } = useListingNavigation();
   const [resetVersion, setResetVersion] = useState(0);
   return (
     <form
@@ -22,10 +22,10 @@ export default function ListingFilters({
       method="get"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!pending) navigate(filterHref(new FormData(event.currentTarget)));
+        navigate(filterHref(new FormData(event.currentTarget)));
       }}
     >
-      <fieldset className="filterControls" disabled={pending}>
+      <fieldset className="filterControls">
         <input type="hidden" name="sources" value="selected" />
         <div className="filterGrid">
           <fieldset>
