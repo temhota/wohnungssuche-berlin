@@ -398,3 +398,61 @@ h1 {
 .pagination a[aria-disabled="true"] {
   cursor: wait;
 }
+
+.watchPanel {
+  margin: 0 0 28px;
+  padding: 22px;
+  border: 1px solid var(--gray-3);
+}
+.watchHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.watchHeading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+}
+.watchHeading > span {
+  font-size: 12px;
+  color: var(--gray-1);
+}
+.watchHeading .watchActive {
+  color: #17613a;
+  font-weight: 700;
+}
+.watchPanel p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.watchPanel .watchHint,
+.watchMessages {
+  color: var(--gray-1);
+}
+.watchMessages p {
+  margin: 6px 0;
+}
+.watchPanel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.watchResults {
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.watchResults a {
+  color: var(--black);
+  overflow-wrap: anywhere;
+}
+.newBadge {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 3px 6px;
+  background: #17613a;
+  color: var(--white);
+  font-weight: 700;
+}

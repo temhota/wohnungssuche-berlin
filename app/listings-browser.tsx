@@ -6,6 +6,8 @@ import { mergeResults, providersToRefresh } from "@/lib/listings/client-data";
 import type { ListingResult } from "@/lib/listings/types";
 import ListingNavigation from "./listing-navigation";
 import ListingsView from "./listings-view";
+import { useListingWatch } from "./use-listing-watch";
+import WatchPanel from "./watch-panel";
 
 function readParams(search: string): SearchParams {
   const query = new URLSearchParams(search);
@@ -30,6 +32,12 @@ export default function ListingsBrowser({
   const resultRef = useRef(initialResult);
   const attempts = useRef(new Map<string, number>());
   const selected = parseFilters(params).providers.join(",");
+  const watch = useListingWatch(result, parseFilters(params));
+  const observing = watch.enabled;
+  const observer = useRef(watch.observe);
+  useEffect(() => {
+    observer.current = watch.observe;
+  }, [watch.observe]);
 
   useEffect(() => {
     const onPopState = () => setParams(readParams(window.location.search));
@@ -45,7 +53,7 @@ export default function ListingsBrowser({
     const controller = new AbortController();
     const providers = selected ? selected.split(",") : [];
     async function refresh() {
-      if (busy || document.visibilityState === "hidden") return;
+      if (busy || (!observing && document.visibilityState === "hidden")) return;
       const now = Date.now();
       const needed = providersToRefresh(
         resultRef.current,
@@ -70,6 +78,7 @@ export default function ListingsBrowser({
           throw new Error("Aktualisierung fehlgeschlagen");
         const incoming: ListingResult = await response.json();
         if (active) {
+          observer.current(incoming);
           resultRef.current = mergeResults(resultRef.current, incoming);
           setResult(resultRef.current);
         }
@@ -99,6 +108,7 @@ export default function ListingsBrowser({
     }, 0);
     const timer = window.setInterval(() => void refresh(), 15_000);
     window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
       controller.abort();
@@ -107,8 +117,9 @@ export default function ListingsBrowser({
       window.clearTimeout(initial);
       window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
-  }, [selected]);
+  }, [selected, observing]);
 
   function navigate(href: string, scroll = false) {
     const url = new URL(href, window.location.href);
@@ -119,7 +130,14 @@ export default function ListingsBrowser({
 
   return (
     <ListingNavigation pending={pending} navigate={navigate}>
-      <ListingsView params={params} result={result} />
+      <ListingsView
+        params={params}
+        result={result}
+        newIds={watch.newListings.map((item) => item.id)}
+        watchPanel={
+          <WatchPanel watch={watch} hasProviders={selected.length > 0} />
+        }
+      />
     </ListingNavigation>
   );
 }

@@ -64,3 +64,27 @@ persistence and sharing across server instances depend on the deployment's
 Next.js Data Cache support; a self-hosted multi-instance deployment needs a shared
 cache handler. The API response itself is not CDN-cached, so its provider status
 and timestamps remain current.
+
+## Browser watch mode
+
+Apply your filters, then click **Beobachtung starten** to establish a silent
+baseline and enable sound/system notifications. Use **Ton testen** to check audio
+and **Beobachtung stoppen** to pause alerts. Each successful fresh response is
+checked for unseen matching listing IDs across the entire result, not just the
+visible page. New providers establish their own silent baseline. Failed/stale
+responses cannot trigger alerts. Changing filters does not turn known listings
+into new ones.
+
+Seen IDs are stored locally in this browser; startup always treats the current
+list as the baseline, rather than alerting about everything added while offline.
+The mode starts paused after reload (audio requires a user gesture). Storage,
+audio and notification failures are shown in the panel; in-page alerts remain
+available. Use one watching tab per browser to avoid duplicate alerts from
+independent tabs with potentially different filters.
+
+While watching, the existing 15-second polling scheduler also runs in hidden
+tabs, subject to browser throttling. Source data retains the 120-second server
+cache. Closing the tab, suspension or device sleep stops/delays checks: this is
+not Web Push or a continuously running server-side monitoring service. Desktop
+notifications require browser permission and a secure context (HTTPS or local
+development). Mobile browsers may only support the in-page fallback.

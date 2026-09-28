@@ -1,4 +1,5 @@
 "use client";
+import type { ReactNode } from "react";
 
 import type { ListingResult } from "@/lib/listings/types";
 import type { SearchParams } from "@/lib/listings/filters";
@@ -16,9 +17,13 @@ const PAGE_SIZE = 50;
 export default function ListingsView({
   params,
   result,
+  newIds = [],
+  watchPanel,
 }: {
   params: SearchParams;
   result: ListingResult;
+  newIds?: string[];
+  watchPanel?: ReactNode;
 }) {
   const filters = parseFilters(params);
   const allListings = result.listings.filter((item) =>
@@ -66,6 +71,7 @@ export default function ListingsView({
           filters={filters}
           districts={districts}
         />
+        {watchPanel}
 
         {listings.length > 0 ? (
           <div className="list">
@@ -74,6 +80,9 @@ export default function ListingsView({
                 <div className="cardBody">
                   <div className="description">
                     <span className="published">
+                      {newIds.includes(item.id) && (
+                        <span className="newBadge">Neu</span>
+                      )}
                       {item.provider}
                       {item.district ? ` · ${item.district}` : ""}
                     </span>
