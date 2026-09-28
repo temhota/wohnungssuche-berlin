@@ -7,8 +7,24 @@ const money = new Intl.NumberFormat("de-DE", {
   currency: "EUR",
 });
 
-export default async function Home() {
+const PAGE_SIZE = 50;
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+} = {}) {
   const { listings, sources, fetchedAt } = await getListings();
+  const params = await searchParams;
+  const rawPage = params?.page;
+  const requestedPage =
+    typeof rawPage === "string" && /^\d+$/.test(rawPage) ? Number(rawPage) : 1;
+  const totalPages = Math.max(1, Math.ceil(listings.length / PAGE_SIZE));
+  const page = Math.min(totalPages, Math.max(1, requestedPage));
+  const visibleListings = listings.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
   const connectedSources = sources.filter((source) => source.status === "ok");
   const failedSources = sources.filter((source) => source.status === "error");
 
@@ -25,7 +41,7 @@ export default async function Home() {
 
         {listings.length > 0 ? (
           <div className="list">
-            {listings.map((item) => (
+            {visibleListings.map((item) => (
               <article className="card" key={item.id}>
                 <div className="cardBody">
                   <div className="description">
@@ -75,6 +91,26 @@ export default async function Home() {
                 ? "Die Angebote konnten gerade nicht geladen werden."
                 : "In den erreichbaren Quellen sind aktuell keine Wohnungsangebote verfügbar."}
           </p>
+        )}
+
+        {totalPages > 1 && (
+          <nav className="pagination" aria-label="Seitennavigation">
+            {page > 1 ? (
+              <a href={`?page=${page - 1}`} rel="prev">
+                ← Zurück
+              </a>
+            ) : (
+              <span aria-disabled="true">← Zurück</span>
+            )}
+            <span aria-current="page">{`Seite ${page} von ${totalPages}`}</span>
+            {page < totalPages ? (
+              <a href={`?page=${page + 1}`} rel="next">
+                Weiter →
+              </a>
+            ) : (
+              <span aria-disabled="true">Weiter →</span>
+            )}
+          </nav>
         )}
 
         {failedSources.length > 0 && (
