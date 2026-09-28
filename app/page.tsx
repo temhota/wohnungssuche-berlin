@@ -1,4 +1,6 @@
 import { getListings } from "@/lib/listings";
+import { filterListings, pageHref, parseFilters } from "@/lib/listings/filters";
+import ListingFilters from "./filters";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +16,20 @@ export default async function Home({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 } = {}) {
-  const { listings, sources, fetchedAt } = await getListings();
-  const params = await searchParams;
+  const params = (await searchParams) ?? {};
+  const filters = parseFilters(params);
+  const {
+    listings: allListings,
+    sources,
+    fetchedAt,
+  } = await getListings(filters.providers);
+  const districts = [
+    ...new Set([
+      ...allListings.flatMap((item) => (item.district ? [item.district] : [])),
+      ...filters.districts,
+    ]),
+  ].sort((a, b) => a.localeCompare(b, "de"));
+  const listings = filterListings(allListings, filters);
   const rawPage = params?.page;
   const requestedPage =
     typeof rawPage === "string" && /^\d+$/.test(rawPage) ? Number(rawPage) : 1;
@@ -38,6 +52,12 @@ export default async function Home({
           </div>
           <span>{listings.length} Angebote</span>
         </div>
+
+        <ListingFilters
+          key={JSON.stringify(filters)}
+          filters={filters}
+          districts={districts}
+        />
 
         {listings.length > 0 ? (
           <div className="list">
@@ -85,18 +105,22 @@ export default async function Home({
           </div>
         ) : (
           <p className="notice">
-            {failedSources.length === 0
-              ? "Aktuell sind keine Wohnungsangebote verfügbar."
-              : connectedSources.length === 0
-                ? "Die Angebote konnten gerade nicht geladen werden."
-                : "In den erreichbaren Quellen sind aktuell keine Wohnungsangebote verfügbar."}
+            {filters.providers.length === 0
+              ? "Bitte wählen Sie mindestens eine Website."
+              : allListings.length > 0
+                ? "Keine Angebote entsprechen Ihren Filtern."
+                : failedSources.length === 0
+                  ? "Aktuell sind keine Wohnungsangebote verfügbar."
+                  : connectedSources.length === 0
+                    ? "Die Angebote konnten gerade nicht geladen werden."
+                    : "In den erreichbaren Quellen sind aktuell keine Wohnungsangebote verfügbar."}
           </p>
         )}
 
         {totalPages > 1 && (
           <nav className="pagination" aria-label="Seitennavigation">
             {page > 1 ? (
-              <a href={`?page=${page - 1}`} rel="prev">
+              <a href={pageHref(params, page - 1)} rel="prev">
                 ← Zurück
               </a>
             ) : (
@@ -104,7 +128,7 @@ export default async function Home({
             )}
             <span aria-current="page">{`Seite ${page} von ${totalPages}`}</span>
             {page < totalPages ? (
-              <a href={`?page=${page + 1}`} rel="next">
+              <a href={pageHref(params, page + 1)} rel="next">
                 Weiter →
               </a>
             ) : (
@@ -126,7 +150,10 @@ export default async function Home({
           Quellen:{" "}
           {connectedSources
             .map((source) => `${source.provider} (${source.count})`)
-            .join(", ") || "nicht erreichbar"}{" "}
+            .join(", ") ||
+            (filters.providers.length === 0
+              ? "keine ausgewählt"
+              : "nicht erreichbar")}{" "}
           · Aktualisiert:{" "}
           {new Date(fetchedAt).toLocaleString("de-DE", {
             timeZone: "Europe/Berlin",

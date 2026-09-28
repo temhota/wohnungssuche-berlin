@@ -3,7 +3,9 @@ import { fetchGesobauListings } from "./gesobau";
 import { fetchHowogeListings } from "./howoge";
 import type { Listing, ListingResult, ListingSource } from "./types";
 
-export async function getListings(): Promise<ListingResult> {
+export async function getListings(
+  selectedProviders?: string[],
+): Promise<ListingResult> {
   const listings: Listing[] = [];
   const sources: ListingSource[] = [];
 
@@ -11,7 +13,10 @@ export async function getListings(): Promise<ListingResult> {
     { provider: "HOWOGE", fetch: fetchHowogeListings },
     { provider: "degewo", fetch: fetchDegewoListings },
     { provider: "GESOBAU", fetch: fetchGesobauListings },
-  ];
+  ].filter(
+    ({ provider }) =>
+      selectedProviders === undefined || selectedProviders.includes(provider),
+  );
 
   const results = await Promise.allSettled(
     providers.map((provider) => provider.fetch()),

@@ -114,3 +114,120 @@ for (const count of [0, 50]) {
     assert.doesNotMatch(html, /aria-label="Seitennavigation"/);
   });
 }
+
+test("filters combine districts, inclusive rent and area ranges, and WBS exclusion", async (t) => {
+  t.mock.method(globalThis, "fetch", async () =>
+    Response.json({
+      immoobjects: [
+        {
+          uid: 1,
+          title: "Match",
+          notice: "Match",
+          district: "Mitte",
+          rent: 800,
+          area: 50,
+          rooms: 2,
+        },
+        {
+          uid: 2,
+          title: "WBS",
+          notice: "WBS",
+          district: "Mitte",
+          rent: 800,
+          area: 50,
+          rooms: 2,
+          wbs: "ja",
+        },
+        {
+          uid: 3,
+          title: "Other district",
+          district: "Pankow",
+          rent: 800,
+          area: 50,
+          rooms: 2,
+        },
+        {
+          uid: 4,
+          title: "Too expensive",
+          district: "Mitte",
+          rent: 801,
+          area: 50,
+          rooms: 2,
+        },
+        {
+          uid: 5,
+          title: "Too small",
+          district: "Mitte",
+          rent: 800,
+          area: 49,
+          rooms: 2,
+        },
+      ],
+    }),
+  );
+  const html = renderToStaticMarkup(
+    await Home({
+      searchParams: Promise.resolve({
+        sources: "selected",
+        provider: "HOWOGE",
+        district: ["Mitte", "Wedding"],
+        minRent: "800",
+        maxRent: "800",
+        minArea: "50",
+        maxArea: "50",
+        excludeWbs: "1",
+      }),
+    }),
+  );
+  assert.equal((html.match(/<article/g) || []).length, 1);
+  assert.match(html, /<h2>Match<\/h2>/);
+  assert.match(html, /1 Angebote/);
+  assert.match(html, /value="Wedding"/);
+});
+
+test("only selected providers are fetched and an empty selection makes no requests", async (t) => {
+  const calls = [];
+  t.mock.method(globalThis, "fetch", async (url) => {
+    calls.push(String(url));
+    return Response.json({ immoobjects: [] });
+  });
+  await Home({
+    searchParams: Promise.resolve({ sources: "selected", provider: "HOWOGE" }),
+  });
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].includes("howoge"));
+  calls.length = 0;
+  const html = renderToStaticMarkup(
+    await Home({ searchParams: Promise.resolve({ sources: "selected" }) }),
+  );
+  assert.equal(calls.length, 0);
+  assert.match(html, /Bitte wählen Sie mindestens eine Website/);
+});
+
+test("filtering precedes pagination and navigation preserves filter values", async (t) => {
+  mockListings(t, 101);
+  const html = renderToStaticMarkup(
+    await Home({
+      searchParams: Promise.resolve({
+        minRent: "850",
+        page: "2",
+        excludeWbs: "1",
+      }),
+    }),
+  );
+  assert.equal((html.match(/<article/g) || []).length, 1);
+  assert.match(html, /<h2>Wohnung 101<\/h2>/);
+  assert.match(html, /51 Angebote/);
+  assert.match(html, /Seite 2 von 2/);
+  assert.match(html, /href="\?minRent=850&amp;excludeWbs=1&amp;page=1"/);
+  assert.doesNotMatch(html, /name="page"/);
+});
+
+test("unmatched filters show an empty search message", async (t) => {
+  mockListings(t, 2);
+  const html = renderToStaticMarkup(
+    await Home({ searchParams: Promise.resolve({ minArea: "100" }) }),
+  );
+  assert.equal((html.match(/<article/g) || []).length, 0);
+  assert.match(html, /Keine Angebote entsprechen Ihren Filtern/);
+});
