@@ -1,4 +1,4 @@
-import { getCachedListings } from "@/lib/listings/cached";
+import { createLoadingResult } from "@/lib/listings/client-data";
 import { parseFilters, type SearchParams } from "@/lib/listings/filters";
 import ListingsBrowser from "./listings-browser";
 
@@ -8,6 +8,6 @@ export default async function Home({
   searchParams,
 }: { searchParams?: Promise<SearchParams> } = {}) {
   const params = (await searchParams) ?? {};
-  const result = await getCachedListings(parseFilters(params).providers);
+  const result = createLoadingResult(parseFilters(params).providers);
   return <ListingsBrowser initialParams={params} initialResult={result} />;
 }

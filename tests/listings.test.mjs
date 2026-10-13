@@ -120,3 +120,17 @@ test("degewo reports a failed later page instead of presenting a complete result
   );
   await assert.rejects(fetchDegewoListings(), /503/);
 });
+
+test("degewo preserves its anonymous search cookie on subsequent pages", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    if (!new URL(url).search)
+      return new Response(card(1) + pageLink(2), {
+        headers: {
+          "set-cookie": "tx_openimmo_session=anonymous; HttpOnly; Path=/",
+        },
+      });
+    assert.match(options.headers.cookie ?? "", /tx_openimmo_session=anonymous/);
+    return new Response(card(2));
+  });
+  assert.equal((await fetchDegewoListings()).length, 2);
+});

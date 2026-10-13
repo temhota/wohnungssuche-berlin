@@ -46,16 +46,38 @@ be added in later phases.
 
 ## Listing cache and filtering
 
-Successful provider snapshots are stored in the Next.js Data Cache for 120 seconds.
-Each snapshot includes every provider page and its actual fetch timestamp. Stale
+Successful source snapshots are stored in the Next.js Data Cache for 120 seconds.
+Each snapshot includes every source page and its actual fetch timestamp. Stale
 snapshots are served while Next.js refreshes them in the background; a failed
 refresh does not replace a successful cached snapshot.
 
+The page renders its controls immediately, without waiting for housing providers.
+After hydration, the browser requests each selected provider independently through
+`/api/listings?provider=HOWOGE` and displays its results as soon as they arrive.
+Slower providers do not hold up faster results; sources still loading are labelled.
+Listing cards require JavaScript and are not included in the initial server HTML.
+
+For degewo, the browser also requests `/api/listings?provider=degewo&degewo=quick`.
+This returns provisional listings from the public inberlinwohnen.de Wohnungsfinder.
+The normal degewo request runs concurrently and combines both sources, preferring
+direct degewo values when they disagree. Listings found only on Wohnungsfinder
+remain labelled as unconfirmed. The two source caches are independent, and either
+source can fail without discarding the other. The direct search preserves its
+anonymous search-session cookies so pagination keeps the requested sort order.
+
+Wohnungsfinder uses an internal Livewire endpoint, not a documented public API.
+The adapter establishes an anonymous session, filters for degewo, requests up to
+100 items per page, and follows additional pages if necessary. It validates the
+reported count, original listing IDs, provider, links, and required fields. Warm
+rent uses the displayed `Gesamtmiete`, since `rentGross` can omit heating costs.
+Coverage and update times differ between the sources; the combined listing is not
+a guarantee that every currently available degewo offer is included.
+
 The browser filters and paginates its loaded listings locally, preserving query
 parameters and browser history without requesting another server-rendered page.
-Selecting a provider that has not been loaded requests it through
-`/api/listings?provider=HOWOGE` (the parameter may be repeated). While the tab is
-visible, it checks every 15 seconds whether a selected snapshot needs refreshing.
+Selecting a provider that has not been loaded also requests it independently.
+While the tab is visible, it checks every 15 seconds whether a selected snapshot
+needs refreshing.
 These checks only request missing or expired data. Existing results and local
 controls remain available during refreshes, and stale data is labelled.
 
@@ -74,6 +96,14 @@ checked for unseen matching listing IDs across the entire result, not just the
 visible page. New providers establish their own silent baseline. Failed/stale
 responses cannot trigger alerts. Changing filters does not turn known listings
 into new ones.
+
+Provisional degewo responses do not establish the watch baseline or trigger alerts.
+The first completed direct check establishes a silent baseline, including any
+unconfirmed listings already visible. Later new listings trigger alerts only after
+they have appeared in the direct degewo source.
+The direct check has its own fetch timestamp, so a stale supplemental cache does
+not block alerts from fresh direct results. The displayed source timestamp still
+uses the oldest included snapshot.
 
 Seen IDs are stored locally in this browser; startup always treats the current
 list as the baseline, rather than alerting about everything added while offline.

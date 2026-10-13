@@ -3,6 +3,7 @@ import { fetchGesobauListings } from "./gesobau";
 import { fetchHowogeListings } from "./howoge";
 import type { Listing, ListingResult, ListingSource } from "./types";
 import { LISTINGS_TTL_MS } from "./client-data";
+import type { ProviderSnapshot } from "./degewo-snapshot";
 
 export const providerFetchers: Record<string, () => Promise<Listing[]>> = {
   HOWOGE: fetchHowogeListings,
@@ -17,9 +18,7 @@ async function readProvider(provider: string) {
 
 export async function getListings(
   selectedProviders?: string[],
-  loadProvider: (
-    provider: string,
-  ) => Promise<{ listings: Listing[]; fetchedAt: string }> = readProvider,
+  loadProvider: (provider: string) => Promise<ProviderSnapshot> = readProvider,
 ): Promise<ListingResult> {
   const listings: Listing[] = [];
   const sources: ListingSource[] = [];
@@ -44,6 +43,11 @@ export async function getListings(
         fetchedAt: result.value.fetchedAt,
         stale:
           Date.now() - Date.parse(result.value.fetchedAt) >= LISTINGS_TTL_MS,
+        ...(result.value.provisional ? { provisional: true } : {}),
+        ...(result.value.error ? { error: result.value.error } : {}),
+        ...(result.value.directFetchedAt
+          ? { directFetchedAt: result.value.directFetchedAt }
+          : {}),
       });
     } else {
       sources.push({

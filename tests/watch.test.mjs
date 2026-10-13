@@ -10,6 +10,8 @@ import {
   restartWatch,
 } from "../lib/watch/tracker.ts";
 import { parseFilters } from "../lib/listings/filters.ts";
+import { getListings } from "../lib/listings/index.ts";
+import { loadDegewoSnapshot } from "../lib/listings/degewo-snapshot.ts";
 const filters = parseFilters({});
 const row = (id, changes = {}) => ({
   id,
@@ -65,6 +67,54 @@ test("nonmatching listings are remembered so changing filters does not alert", (
   );
 });
 
+test("provisional results do not initialize watch mode before the completed baseline", () => {
+  const state = createWatchState();
+  baselineWatch(state, snapshot([row("1")], { provisional: true }));
+  assert.equal(state.initialized.has("HOWOGE"), false);
+  assert.deepEqual(
+    observeListings(
+      state,
+      snapshot([row("1")], { provisional: true }),
+      filters,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    observeListings(state, snapshot([row("1"), row("2")]), filters),
+    [],
+  );
+  assert.deepEqual(
+    observeListings(
+      state,
+      snapshot([row("1"), row("2"), row("3")]),
+      filters,
+    ).map((x) => x.id),
+    ["3"],
+  );
+});
+
+test("unconfirmed listings cannot alert or consume IDs until directly verified", () => {
+  const state = createWatchState();
+  baselineWatch(state, snapshot([]));
+  assert.deepEqual(
+    observeListings(state, snapshot([row("1", { verified: false })]), filters),
+    [],
+  );
+  assert.deepEqual(
+    observeListings(state, snapshot([row("1")]), filters).map((x) => x.id),
+    ["1"],
+  );
+});
+
+test("unconfirmed listings in the first completed baseline stay silent when verified later", () => {
+  const state = createWatchState();
+  assert.deepEqual(
+    observeListings(state, snapshot([row("1", { verified: false })]), filters),
+    [],
+  );
+  assert.deepEqual(observeListings(state, snapshot([row("1")]), filters), []);
+});
+
 test("disappeared and reappearing listings do not trigger again", () => {
   const state = createWatchState();
   baselineWatch(state, snapshot([row("1")]));
@@ -72,7 +122,7 @@ test("disappeared and reappearing listings do not trigger again", () => {
   assert.deepEqual(observeListings(state, snapshot([row("1")]), filters), []);
 });
 
-test("new providers and initially unavailable sources establish a silent baseline", () => {
+test("new providers and initially unavailable or loading sources establish a silent baseline", () => {
   const state = createWatchState();
   baselineWatch(state, snapshot([], { status: "error" }));
   assert.deepEqual(observeListings(state, snapshot([row("1")]), filters), []);
@@ -86,6 +136,23 @@ test("new providers and initially unavailable sources establish a silent baselin
     fetchedAt: "",
   };
   assert.deepEqual(observeListings(state, added, filters), []);
+  const loading = createWatchState();
+  baselineWatch(loading, {
+    listings: [],
+    sources: [
+      { provider: "HOWOGE", status: "loading", count: 0 },
+      { provider: "degewo", status: "loading", count: 0 },
+    ],
+    fetchedAt: "",
+  });
+  assert.deepEqual(observeListings(loading, snapshot([row("1")]), filters), []);
+  assert.deepEqual(observeListings(loading, added, filters), []);
+  assert.deepEqual(
+    observeListings(loading, snapshot([row("1"), row("2")]), filters).map(
+      (item) => item.id,
+    ),
+    ["2"],
+  );
 });
 
 test("stale and failed refreshes cannot trigger or consume new listings", () => {
@@ -102,6 +169,35 @@ test("stale and failed refreshes cannot trigger or consume new listings", () => 
     );
   }
   assert.equal(observeListings(state, snapshot([row("2")]), filters).length, 1);
+});
+
+test("a fresh direct check can alert even when the supplemental feed remains stale", async () => {
+  const state = createWatchState();
+  baselineWatch(state, {
+    listings: [],
+    sources: [{ provider: "degewo", status: "ok", count: 0 }],
+    fetchedAt: "",
+  });
+  const result = await getListings(["degewo"], () =>
+    loadDegewoSnapshot(
+      async () => ({
+        listings: [row("unconfirmed", { provider: "degewo", verified: false })],
+        fetchedAt: "2020-01-01T00:00:00.000Z",
+      }),
+      async () => ({
+        listings: [row("verified", { provider: "degewo" })],
+        fetchedAt: new Date().toISOString(),
+      }),
+    ),
+  );
+  assert.equal(result.sources[0].stale, true);
+  assert.deepEqual(
+    observeListings(state, result, filters).map((x) => x.id),
+    ["verified"],
+  );
+  result.sources[0].directFetchedAt = "2020-01-01T00:00:00.000Z";
+  result.listings.push(row("too-old", { provider: "degewo" }));
+  assert.deepEqual(observeListings(state, result, filters), []);
 });
 
 test("all pages are inspected and WBS, district and provider filters apply", () => {

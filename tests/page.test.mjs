@@ -5,6 +5,8 @@ import { createElement } from "react";
 import ListingsView from "../app/listings-view.tsx";
 import { getListings } from "../lib/listings/index.ts";
 import { parseFilters } from "../lib/listings/filters.ts";
+import { createLoadingResult } from "../lib/listings/client-data.ts";
+import HomePage from "../app/page.tsx";
 
 async function Home({ searchParams } = {}) {
   const params = (await searchParams) ?? {};
@@ -15,6 +17,106 @@ async function Home({ searchParams } = {}) {
 function renderToStaticMarkup(element) {
   return renderMarkup(element);
 }
+
+test("provisional degewo prices are labelled while direct verification is pending or failed", () => {
+  const result = {
+    listings: [
+      {
+        id: "degewo-1",
+        provider: "degewo",
+        title: "Testwohnung",
+        address: "Teststraße",
+        district: "Mitte",
+        warmRent: 800,
+        rooms: 2,
+        area: 50,
+        wbs: null,
+        features: [],
+        href: "https://www.degewo.de/",
+        verified: false,
+      },
+    ],
+    sources: [
+      { provider: "degewo", status: "ok", count: 1, provisional: true },
+    ],
+    fetchedAt: "2026-10-13T10:00:00.000Z",
+  };
+  const render = () =>
+    renderToStaticMarkup(
+      createElement(ListingsView, { params: { provider: "degewo" }, result }),
+    );
+  assert.match(render(), /Noch nicht direkt bestätigt/);
+  assert.match(render(), /Direkter Abgleich läuft/);
+  result.sources[0].error = "offline";
+  assert.match(render(), /Direkter Abgleich nicht verfügbar/);
+  assert.doesNotMatch(render(), /Direkter Abgleich läuft/);
+});
+
+test("initial page does not request providers before rendering", async (t) => {
+  t.mock.method(globalThis, "fetch", () =>
+    assert.fail("Initial HTML must not fetch providers"),
+  );
+  const html = renderToStaticMarkup(
+    await HomePage({
+      searchParams: Promise.resolve({ provider: ["HOWOGE", "degewo"] }),
+    }),
+  );
+  assert.match(html, /Werden geladen: HOWOGE, degewo/);
+  assert.match(html, /<form/);
+});
+
+test("initial loading state renders controls without empty or failure messages", () => {
+  const html = renderToStaticMarkup(
+    createElement(ListingsView, {
+      params: { provider: ["HOWOGE", "degewo"] },
+      result: createLoadingResult(["HOWOGE", "degewo"]),
+    }),
+  );
+  assert.match(html, /<form/);
+  assert.match(html, /Werden geladen: HOWOGE, degewo/);
+  assert.doesNotMatch(
+    html,
+    /Aktuell sind keine Wohnungsangebote verfügbar|Nicht erreichbar:|Quellen: nicht erreichbar|Aktualisiert:/,
+  );
+});
+
+test("partial results remain visible while another provider is loading", () => {
+  const html = renderToStaticMarkup(
+    createElement(ListingsView, {
+      params: {},
+      result: {
+        listings: [
+          {
+            id: "howoge-1",
+            provider: "HOWOGE",
+            title: "Fast listing",
+            address: "Teststraße",
+            district: "Mitte",
+            warmRent: 800,
+            rooms: 2,
+            area: 50,
+            wbs: null,
+            features: [],
+            href: "https://www.howoge.de/",
+          },
+        ],
+        sources: [
+          {
+            provider: "HOWOGE",
+            status: "ok",
+            count: 1,
+            fetchedAt: "2026-10-13T10:00:00.000Z",
+          },
+          { provider: "degewo", status: "loading", count: 0 },
+        ],
+        fetchedAt: "2026-10-13T10:00:00.000Z",
+      },
+    }),
+  );
+  assert.match(html, /Fast listing/);
+  assert.match(html, /Werden geladen: degewo/);
+  assert.doesNotMatch(html, /Nicht erreichbar: degewo/);
+});
 
 test("page exposes unavailable providers while keeping successful listings", async (t) => {
   t.mock.method(globalThis, "fetch", async (url) =>
@@ -38,10 +140,10 @@ test("page formats update time in Berlin regardless of server timezone", async (
     if (previous === undefined) delete process.env.TZ;
     else process.env.TZ = previous;
   });
-  t.mock.method(
-    globalThis,
-    "fetch",
-    async () => new Response("Unavailable", { status: 503 }),
+  t.mock.method(globalThis, "fetch", async (url) =>
+    String(url).includes("howoge")
+      ? Response.json({ immoobjects: [] })
+      : new Response("Unavailable", { status: 503 }),
   );
   const before = new Date();
   const html = renderToStaticMarkup(await Home());

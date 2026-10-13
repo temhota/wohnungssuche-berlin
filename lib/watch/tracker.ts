@@ -1,5 +1,6 @@
 import { filterListings, type Filters } from "../listings/filters";
 import type { ListingResult } from "../listings/types";
+import { LISTINGS_TTL_MS } from "../listings/client-data";
 
 export const SEEN_STORAGE_KEY = "kiezfinder.watch.seen.v1";
 export function createWatchState(seen: Iterable<string> = []) {
@@ -31,7 +32,11 @@ export function baselineWatch(
 ) {
   syncWatchProviders(state, providers);
   for (const source of result.sources) {
-    if (source.status !== "ok" || !providers.includes(source.provider))
+    if (
+      source.status !== "ok" ||
+      source.provisional ||
+      !providers.includes(source.provider)
+    )
       continue;
     state.initialized.add(source.provider);
     for (const item of result.listings) {
@@ -48,9 +53,13 @@ export function observeListings(
   syncWatchProviders(state, filters.providers);
   const candidates = [];
   for (const source of result.sources) {
+    const directAge = Date.now() - Date.parse(source.directFetchedAt ?? "");
+    const directFresh =
+      Number.isFinite(directAge) && directAge < LISTINGS_TTL_MS;
     if (
       source.status !== "ok" ||
-      source.stale ||
+      source.provisional ||
+      (source.stale && !directFresh) ||
       source.error ||
       !filters.providers.includes(source.provider)
     )
@@ -58,6 +67,7 @@ export function observeListings(
     const initialized = state.initialized.has(source.provider);
     for (const item of result.listings) {
       if (item.provider !== source.provider) continue;
+      if (initialized && item.verified === false) continue;
       if (initialized && !state.seen.has(item.id)) candidates.push(item);
       state.seen.add(item.id);
     }

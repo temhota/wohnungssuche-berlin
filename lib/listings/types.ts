@@ -10,15 +10,18 @@ export type Listing = {
   wbs: string | null;
   features: string[];
   href: string;
+  verified?: boolean;
 };
 
 export type ListingSource = {
   provider: string;
-  status: "ok" | "error";
+  status: "ok" | "error" | "loading";
   count: number;
   error?: string;
   fetchedAt?: string;
   stale?: boolean;
+  provisional?: boolean;
+  directFetchedAt?: string;
 };
 
 export type ListingResult = {

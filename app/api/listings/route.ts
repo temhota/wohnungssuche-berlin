@@ -9,7 +9,10 @@ export async function GET(request: Request) {
   const selected = params.has("provider")
     ? params.getAll("provider").filter((value) => PROVIDERS.includes(value))
     : undefined;
-  const result = await getCachedListings(selected);
+  const result = await getCachedListings(
+    selected,
+    params.get("degewo") === "quick",
+  );
   const hasSuccessfulSource = result.sources.some(
     (source) => source.status === "ok",
   );

@@ -29,8 +29,13 @@ export default function ListingsView({
   const allListings = result.listings.filter((item) =>
     filters.providers.includes(item.provider),
   );
-  const sources = result.sources.filter((source) =>
-    filters.providers.includes(source.provider),
+  const sources = filters.providers.map(
+    (provider) =>
+      result.sources.find((source) => source.provider === provider) ?? {
+        provider,
+        status: "loading" as const,
+        count: 0,
+      },
   );
   const fetchedAt =
     sources
@@ -54,6 +59,9 @@ export default function ListingsView({
   );
   const connectedSources = sources.filter((source) => source.status === "ok");
   const failedSources = sources.filter((source) => source.status === "error");
+  const loadingSources = sources.filter(
+    (source) => source.status === "loading",
+  );
 
   return (
     <main>
@@ -61,7 +69,7 @@ export default function ListingsView({
         <div className="pageHeading">
           <div>
             <h1>Wohnungsangebote</h1>
-            <p>Aktuelle Angebote direkt von HOWOGE, degewo und GESOBAU</p>
+            <p>Aktuelle Angebote von HOWOGE, degewo und GESOBAU</p>
           </div>
           <span>{listings.length} Angebote</span>
         </div>
@@ -89,6 +97,9 @@ export default function ListingsView({
                     <h2>{item.title}</h2>
                     <p className="address">{item.address}</p>
                     <div className="tags">
+                      {item.verified === false && (
+                        <span>Noch nicht direkt bestätigt</span>
+                      )}
                       {item.wbs && <span>{item.wbs}</span>}
                       {item.features.map((feature) => (
                         <span key={feature}>{feature}</span>
@@ -120,7 +131,7 @@ export default function ListingsView({
               </article>
             ))}
           </div>
-        ) : (
+        ) : loadingSources.length > 0 ? null : (
           <p className="notice">
             {filters.providers.length === 0
               ? "Bitte wählen Sie mindestens eine Website."
@@ -154,6 +165,15 @@ export default function ListingsView({
           </nav>
         )}
 
+        {loadingSources.length > 0 && (
+          <p className="notice" role="status">
+            Werden geladen:{" "}
+            {loadingSources.map((source) => source.provider).join(", ")}.
+            {connectedSources.length > 0 &&
+              " Bereits geladene Angebote werden angezeigt."}
+          </p>
+        )}
+
         {failedSources.length > 0 && (
           <p className="notice" role="status">
             Nicht erreichbar:{" "}
@@ -162,6 +182,17 @@ export default function ListingsView({
               " Die Angebotsliste ist möglicherweise unvollständig."}
           </p>
         )}
+
+        {sources
+          .filter((source) => source.provisional)
+          .map((source) => (
+            <p className="notice" role="status" key={source.provider}>
+              {source.provider}: Vorläufige Angebote von inberlinwohnen.de.{" "}
+              {source.error
+                ? "Direkter Abgleich nicht verfügbar. Die Liste ist möglicherweise unvollständig."
+                : "Direkter Abgleich läuft; weitere Angebote und Korrekturen folgen."}
+            </p>
+          ))}
 
         {sources.some((source) => source.stale) && (
           <p className="notice" role="status">
@@ -176,12 +207,19 @@ export default function ListingsView({
             .join(", ") ||
             (filters.providers.length === 0
               ? "keine ausgewählt"
-              : "nicht erreichbar")}{" "}
-          · Aktualisiert:{" "}
-          {new Date(fetchedAt).toLocaleString("de-DE", {
-            timeZone: "Europe/Berlin",
-          })}{" "}
-          (Berliner Zeit)
+              : loadingSources.length > 0
+                ? "werden geladen"
+                : "nicht erreichbar")}
+          {connectedSources.length > 0 && (
+            <>
+              {" "}
+              · Aktualisiert:{" "}
+              {new Date(fetchedAt).toLocaleString("de-DE", {
+                timeZone: "Europe/Berlin",
+              })}{" "}
+              (Berliner Zeit)
+            </>
+          )}
         </p>
       </section>
     </main>

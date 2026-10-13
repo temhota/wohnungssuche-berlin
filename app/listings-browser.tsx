@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { parseFilters, type SearchParams } from "@/lib/listings/filters";
 import { mergeResults, providersToRefresh } from "@/lib/listings/client-data";
+import { refreshListings } from "@/lib/listings/refresh";
 import type { ListingResult } from "@/lib/listings/types";
 import ListingNavigation from "./listing-navigation";
 import ListingsView from "./listings-view";
@@ -28,7 +29,9 @@ export default function ListingsBrowser({
 }) {
   const [params, setParams] = useState(initialParams);
   const [result, setResult] = useState(initialResult);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState(
+    initialResult.sources.some((source) => source.status === "loading"),
+  );
   const resultRef = useRef(initialResult);
   const attempts = useRef(new Map<string, number>());
   const selected = parseFilters(params).providers.join(",");
@@ -68,40 +71,19 @@ export default function ListingsBrowser({
       needed.forEach((provider) => requestAttempts.set(provider, now));
       setPending(true);
       try {
-        const query = new URLSearchParams();
-        needed.forEach((provider) => query.append("provider", provider));
-        const response = await fetch(`/api/listings?${query}`, {
-          signal: controller.signal,
-          cache: "no-store",
+        await refreshListings(needed, controller.signal, (incoming) => {
+          if (active) {
+            observer.current(incoming);
+            resultRef.current = mergeResults(resultRef.current, incoming);
+            setResult(resultRef.current);
+          }
         });
-        if (!response.ok && response.status !== 502)
-          throw new Error("Aktualisierung fehlgeschlagen");
-        const incoming: ListingResult = await response.json();
-        if (active) {
-          observer.current(incoming);
-          resultRef.current = mergeResults(resultRef.current, incoming);
-          setResult(resultRef.current);
-        }
-      } catch {
-        if (active) {
-          resultRef.current = mergeResults(resultRef.current, {
-            listings: [],
-            sources: needed.map((provider) => ({
-              provider,
-              status: "error",
-              count: 0,
-              error: "Aktualisierung fehlgeschlagen",
-            })),
-            fetchedAt: new Date().toISOString(),
-          });
-          setResult(resultRef.current);
-        }
       } finally {
         busy = false;
         if (active) setPending(false);
       }
     }
-    // Defer the initial refresh so the cached result can paint first.
+    // Paint the controls first, then publish each provider as it finishes.
     const initial = window.setTimeout(() => {
       setPending(false);
       void refresh();

@@ -81,3 +81,78 @@ test("cached aggregation preserves actual fetch time and reports stale snapshots
   assert.equal(result.sources[0].fetchedAt, at);
   assert.equal(result.sources[0].stale, true);
 });
+
+test("provider aggregation carries provisional verification failures to the UI", async () => {
+  const result = await getListings(["degewo"], async () => ({
+    listings: [],
+    fetchedAt: at,
+    provisional: true,
+    error: "direct offline",
+  }));
+  assert.equal(result.sources[0].provisional, true);
+  assert.equal(result.sources[0].error, "direct offline");
+});
+
+test("provisional updates retain previous verified prices and missing listings", () => {
+  const previous = {
+    listings: [
+      { id: "degewo-1", provider: "degewo", warmRent: 800 },
+      { id: "degewo-2", provider: "degewo", warmRent: 600 },
+    ],
+    sources: [{ provider: "degewo", status: "ok", count: 2, fetchedAt: at }],
+    fetchedAt: at,
+  };
+  const merged = mergeResults(previous, {
+    listings: [
+      { id: "degewo-1", provider: "degewo", warmRent: 1000, verified: false },
+      { id: "degewo-3", provider: "degewo", warmRent: 700, verified: false },
+    ],
+    sources: [
+      {
+        provider: "degewo",
+        status: "ok",
+        count: 2,
+        fetchedAt: "2026-09-28T10:03:00.000Z",
+        provisional: true,
+      },
+    ],
+    fetchedAt: "2026-09-28T10:03:00.000Z",
+  });
+  assert.deepEqual(
+    merged.listings.map((x) => [x.id, x.warmRent]),
+    [
+      ["degewo-2", 600],
+      ["degewo-3", 700],
+      ["degewo-1", 800],
+    ],
+  );
+  assert.equal(merged.sources[0].count, 3);
+  assert.equal(merged.sources[0].fetchedAt, at);
+  assert.equal(merged.sources[0].stale, true);
+  const fallback = mergeResults(merged, {
+    listings: [
+      { id: "degewo-1", provider: "degewo", warmRent: 1000, verified: false },
+    ],
+    sources: [
+      {
+        provider: "degewo",
+        status: "ok",
+        count: 1,
+        provisional: true,
+        error: "direct offline",
+        fetchedAt: "2026-09-28T10:03:00.000Z",
+      },
+    ],
+    fetchedAt: "2026-09-28T10:03:00.000Z",
+  });
+  assert.deepEqual(
+    fallback.listings
+      .filter((x) => x.verified !== false)
+      .map((x) => [x.id, x.warmRent]),
+    [
+      ["degewo-2", 600],
+      ["degewo-1", 800],
+    ],
+  );
+  assert.equal(fallback.sources[0].fetchedAt, at);
+});

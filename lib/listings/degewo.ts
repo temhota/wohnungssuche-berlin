@@ -130,21 +130,38 @@ export async function fetchDegewoListings(): Promise<Listing[]> {
     "user-agent":
       "Kiezfinder/0.1 (+https://github.com/temhota/wohnungssuche-berlin)",
   };
+  const cookies = new Map<string, string>();
   async function fetchPage(url: string, initial = false) {
     const response = await fetch(url, {
       method: initial ? "POST" : "GET",
-      headers: initial
-        ? {
-            ...headers,
-            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-          }
-        : headers,
+      headers: {
+        ...headers,
+        ...(initial
+          ? {
+              "content-type":
+                "application/x-www-form-urlencoded; charset=UTF-8",
+            }
+          : {}),
+        ...(cookies.size
+          ? {
+              cookie: [...cookies]
+                .map(([key, value]) => `${key}=${value}`)
+                .join("; "),
+            }
+          : {}),
+      },
       body: initial ? searchParams : undefined,
       cache: "no-store",
       signal,
     });
     if (!response.ok)
       throw new Error(`degewo returned HTTP ${response.status}`);
+    for (const cookie of response.headers.getSetCookie()) {
+      const pair = cookie.split(";")[0];
+      const separator = pair.indexOf("=");
+      if (separator > 0)
+        cookies.set(pair.slice(0, separator), pair.slice(separator + 1));
+    }
     return parsePage(await response.text());
   }
 

@@ -2,6 +2,18 @@ import type { ListingResult } from "./types";
 
 export const LISTINGS_TTL_MS = 120_000;
 
+export function createLoadingResult(providers: string[]): ListingResult {
+  return {
+    listings: [],
+    sources: providers.map((provider) => ({
+      provider,
+      status: "loading",
+      count: 0,
+    })),
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
 export function providersToRefresh(
   result: ListingResult,
   providers: string[],
@@ -32,6 +44,32 @@ export function mergeResults(
         ...old,
         stale: true,
         error: source.error,
+      });
+    } else if (
+      source.provisional &&
+      old?.fetchedAt &&
+      listings.some(
+        (item) => item.provider === source.provider && item.verified !== false,
+      )
+    ) {
+      const combined = new Map(
+        incoming.listings
+          .filter((item) => item.provider === source.provider)
+          .map((item) => [item.id, item]),
+      );
+      for (const item of listings.filter(
+        (item) => item.provider === source.provider,
+      )) {
+        if (item.verified !== false || !combined.has(item.id))
+          combined.set(item.id, item);
+      }
+      listings = listings.filter((item) => item.provider !== source.provider);
+      listings.push(...combined.values());
+      sources.set(source.provider, {
+        ...source,
+        count: combined.size,
+        fetchedAt: old.fetchedAt,
+        stale: true,
       });
     } else {
       sources.set(source.provider, source);
